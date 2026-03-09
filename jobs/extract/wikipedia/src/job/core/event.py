@@ -35,33 +35,3 @@ class WikipediaPageChangeRecord:
             log_action=change.get("logaction"),
             raw_json=json.dumps(change, separators=(",", ":")),
         )
-
-
-
-@dataclass
-class GithubEvent:
-    event_id: str
-    event_type: str
-    created_at: str
-    actor_id: int
-    actor_login: str
-    repo_id: int
-    repo_name: str
-    is_public: bool
-    event_json: str
-
-    @staticmethod
-    def from_dict(event: dict) -> "GithubEvent":
-        actor = event.get("actor") or {}
-        repo = event.get("repo") or {}
-        return GithubEvent(
-            event_id=str(event.get("id")),
-            event_type=event.get("type"),
-            created_at=event.get("created_at"),
-            actor_id=actor.get("id"),
-            actor_login=actor.get("login"),
-            repo_id=repo.get("id"),
-            repo_name=repo.get("name"),
-            is_public=event.get("public"),
-            event_json=json.dumps(event, separators=(",", ":")),
-        )

@@ -2,7 +2,7 @@
 name = "orchestration"
 version = "0.1.0"
 description = "Airflow DAG authoring project"
-authors = ["Platform Team <platform@example.com>"]
+authors = [""]
 readme = "README.md"
 package-mode = false
 

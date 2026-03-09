@@ -16,6 +16,7 @@ serviceAccount:
 config:
   core:
     dags_folder: /opt/airflow/local-dags
+    dagbag_import_timeout: 120
 
 postgresql:
   enabled: false

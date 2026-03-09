@@ -15,6 +15,23 @@ data:
       CREATE USER :appuser WITH PASSWORD :'pw';
       GRANT CONNECT ON DATABASE bronze TO :appuser;
       GRANT USAGE ON SCHEMA public TO :appuser;
+      CREATE TABLE IF NOT EXISTS wikipedia_page_changes (
+        change_id BIGINT PRIMARY KEY,
+        revision_id_old BIGINT,
+        revision_id_new BIGINT,
+        title TEXT,
+        event_timestamp TIMESTAMPTZ,
+        username TEXT,
+        comment TEXT,
+        old_length INTEGER,
+        new_length INTEGER,
+        tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+        log_type TEXT,
+        log_action TEXT,
+        raw_json JSONB,
+        source_object_key TEXT NOT NULL,
+        loaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :appuser;
       ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :appuser;    
     EOSQL

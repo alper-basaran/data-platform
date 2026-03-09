@@ -46,7 +46,7 @@ def run(config: AppConfig):
     ).lstrip("/")
     output_key = f"{config.raw_folder.rstrip('/')}/{partition_key}"
 
-    parquet_bytes = convert_to_parquet_bytes(all_changes, mapper_fn=lambda e: e.__dict__)
+    parquet_bytes = convert_to_parquet_bytes(all_changes, mapper_fn=lambda e: e.model_dump())
     s3_client.upload_bytes(bucket=config.s3_bucket, key=output_key, data=parquet_bytes)
     
 

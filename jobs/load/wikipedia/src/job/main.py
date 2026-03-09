@@ -3,8 +3,9 @@ import sys
 from job.config import AppConfig
 from job.lib.logger import configure_logging, get_logger
 from job.lib.parquetutils import build_partitioned_key, read_parquet_rows
-from job.lib.postgres import PostgresClient
+from job.lib.postgres import WikipediaPageChangesWriter
 from job.lib.s3 import S3Client
+from job.lib.warehouse import PostgresWarehouseWriter
 
 configure_logging()
 _logger = get_logger(__package__)
@@ -31,15 +32,22 @@ def run(config: AppConfig):
         _logger.info("No rows found in parquet file. Exiting without writes.")
         return
 
-    pg_client = PostgresClient(
+    
+    warehouse_writer = PostgresWarehouseWriter( 
         host=config.pg_host,
         port=config.pg_port,
         dbname=config.pg_db,
         user=config.pg_user,
         password=config.pg_password,
     )
+    page_changes_writer = WikipediaPageChangesWriter(warehouse_client=warehouse_writer)
 
-    loaded_count = pg_client.persist_page_changes(rows=rows, source_object_key=source_object_key)
+    loaded_count = page_changes_writer.persist_page_changes(
+        table="wikipedia_page_changes",
+        rows=rows,
+        source_object_key=source_object_key
+    )
+    
     _logger.info(
         f"Loaded {loaded_count} rows into Postgres table wikipedia_page_changes from {source_object_key}."
     )

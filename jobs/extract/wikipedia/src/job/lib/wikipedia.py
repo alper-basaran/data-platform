@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 
-from job.core.event import WikipediaPageChangeRecord
+from job.core.model import WikipediaPageChangeRecord
 from typing import Any
 from job.lib.logger import configure_logging, get_logger
 

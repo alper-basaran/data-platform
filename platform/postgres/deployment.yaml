@@ -7,11 +7,11 @@ data:
     #!/bin/bash
     set -e
     
-    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-'EOSQL'
       CREATE DATABASE bronze;
     EOSQL
     
-    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname=bronze -v appuser="$LOAD_USER" -v pw="$LOAD_PASSWORD" <<-EOSQL
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname=bronze -v appuser="$LOAD_USER" -v pw="$LOAD_PASSWORD" <<-'EOSQL'
       CREATE USER :appuser WITH PASSWORD :'pw';
       GRANT CONNECT ON DATABASE bronze TO :appuser;
       GRANT USAGE ON SCHEMA public TO :appuser;
@@ -25,18 +25,34 @@ data:
         comment TEXT,
         old_length INTEGER,
         new_length INTEGER,
-        tags JSONB NOT NULL DEFAULT '[]'::jsonb,
         log_type TEXT,
         log_action TEXT,
-        raw_json JSONB,
         source_object_key TEXT NOT NULL,
-        loaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      CREATE OR REPLACE FUNCTION set_updated_at()
+      RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$;
+
+      DROP TRIGGER IF EXISTS trg_set_updated_at_wikipedia_page_changes ON wikipedia_page_changes;
+      CREATE TRIGGER trg_set_updated_at_wikipedia_page_changes
+      BEFORE UPDATE ON wikipedia_page_changes
+      FOR EACH ROW
+      EXECUTE FUNCTION set_updated_at();
+
       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :appuser;
       ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :appuser;    
     EOSQL
 
-    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname=postgres -v airflow_user="$AIRFLOW_USER" -v airflow_pw="$AIRFLOW_PASSWORD" -v airflow_db="$AIRFLOW_DB" <<-EOSQL
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname=postgres -v airflow_user="$AIRFLOW_USER" -v airflow_pw="$AIRFLOW_PASSWORD" -v airflow_db="$AIRFLOW_DB" <<-'EOSQL'
       CREATE USER :"airflow_user" WITH PASSWORD :'airflow_pw';
       CREATE DATABASE :"airflow_db" OWNER :"airflow_user";
     EOSQL

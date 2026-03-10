@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: wikipedia
+    description: Raw Wikipedia page event data loaded into PostgreSQL wikipedia.
+    database: "{{ env_var('DBT_PG_DATABASE', 'wikipedia') }}"
+    schema: "{{ env_var('DBT_SOURCE_SCHEMA', 'public') }}"
+    tables:
+      - name: wikipedia_page_events
+        identifier: "{{ env_var('DBT_SOURCE_TABLE', 'wikipedia_page_events') }}"
+        description: Raw event stream table consumed by dbt models.
+
+models:
+  - name: stg_wikipedia_page_events
+    description: Standardized Wikipedia page events with cleaned dimensions and timestamp buckets.
+    columns:
+      - name: change_id
+        description: Unique change/event identifier from source system.
+        tests:
+          - not_null
+          - unique
+      - name: page_title
+        description: Normalized page title.
+      - name: event_timestamp
+        description: Event timestamp in UTC.
+        tests:
+          - not_null
+      - name: username
+        description: Normalized editor username; null for anonymous edits.
+      - name: is_anonymous
+        description: True when username is absent.
+      - name: length_delta
+        description: Net content size change in bytes.

@@ -5,7 +5,7 @@ This repository contains an end to end data platform that ingests Wikipedia page
 
 ## Quickstart
 
-> In order to run the project locally, Docker and kind needs to be installed
+> In order to run the project locally, `Docker` and `Kind` needs to be installed
 
 Before running the platform, create a local environment file for demo credentials:
 
@@ -42,22 +42,26 @@ The solution consists of shared components (minio and postgres), containarized s
 
 
 ## Technical Decisions
-- Wikipedia Page Edits API vs Github Events
+### Wikipedia Page Edits API vs Github Events
+  
 ([Wikipedia's Recent Changes](https://www.mediawiki.org/wiki/API:RecentChanges)) endpoint has been used intead of GitHub events, for following reasons.
-    - Throttling: Wikipedia's endpoint supports up to 200 requests per second, anonymously, whereas Github's rate limit policy is 60 requests per minute. Considering backfilling and pagination, this becomes a limitation.
-    - Data Volume: Wikipedia's page change events are in the order of 1000s per hour, whereas Github's changes are more frequent and the endpoint is only able to provide last 300 events. This causes the extract step to become time critical, as the delays between successive runs would introduce a time gap in the raw events table. 
-    - Time-based pagination: Wikipedia's endpoint offers pagination based on time intervals, which fits better for the ingestion pipeline and makes backfilling possible, in contrast to Github's endpoint.
+- Throttling: Wikipedia's endpoint supports up to 200 requests per second, anonymously, whereas Github's rate limit policy is 60 requests per minute. Considering backfilling and pagination, this becomes a limitation.
+- Data Volume: Wikipedia's page change events are in the order of 1000s per hour, whereas Github's changes are more frequent and the endpoint is only able to provide last 300 events. This causes the extract step to become time critical, as the delays between successive runs would introduce a time gap in the raw events table. 
+- Time-based pagination: Wikipedia's endpoint offers pagination based on time intervals, which fits better for the ingestion pipeline and makes backfilling possible, in contrast to Github's endpoint.
 
-- Apache Parquet vs Json
+### Apache Parquet vs Json
+  
 For landing dataset, Apache Parquet has been used as an alternative to raw json based on following criteria:
-    - Compression: Using built-in snappy compression, Parquet is more storage efficient and reduces API costs and network traffic on S3
-    - Partition Friendliness: Although partitioning is not part of parquet spec itself, main query engines work seamlessly with partitioned layouts.
-    - Typed Schema: Parquet stores data with a defined schema, which enforces types on columns and eliminates the need to parse each field downstream
-    - Columnar storage: Although this is not an immediate requirement, using Parquet would enable broad range of tools to work on this dataset efficiently
+- Compression: Using built-in snappy compression, Parquet is more storage efficient and reduces API costs and network traffic on S3
+- Partition Friendliness: Although partitioning is not part of parquet spec itself, main query engines work seamlessly with partitioned layouts.
+- Typed Schema: Parquet stores data with a defined schema, which enforces types on columns and eliminates the need to parse each field downstream
+- Columnar storage: Although this is not an immediate requirement, using Parquet would enable broad range of tools to work on this dataset efficiently
 
-- Poetry for Python Projects: Poetry has been used for dependency management and packaging. A popular alternative would be `uv`. The choice of poetry was motivated based on familiarity of the tool, rather than a technical advantage or limitation.
+### Poetry for Python Projects
 
-- Airflow Orchestration
+Poetry has been used for dependency management and packaging. A popular alternative would be `uv`. The choice of poetry was motivated based on familiarity of the tool, rather than a technical advantage or limitation.
+
+### Airflow Orchestration
 Although not listed as a core requirement, having basic orchestration would be useful for development and testing cycle, as well as review time reproducability, therefore Airflow was deployed using official helm chart along with a simple DAG to run the deliverables and backfill some data. 
 
 ## Remarks

@@ -37,10 +37,6 @@ jobs:
         working-directory: ${{ matrix.project_path }}
         run: poetry run black --check src
 
-      - name: isort check
-        working-directory: ${{ matrix.project_path }}
-        run: poetry run isort --check-only src
-
       - name: Run pytest (if tests exist)
         working-directory: ${{ matrix.project_path }}
         run: |

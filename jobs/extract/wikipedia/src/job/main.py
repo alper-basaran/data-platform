@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
 import sys
 
 from requests_ratelimiter import LimiterSession
 
 from job.config import AppConfig
 from job.lib.logger import configure_logging, get_logger
-from job.lib.parquetutils import (build_partitioned_key,
-                                  convert_to_parquet_bytes)
+from job.lib.parquetutils import build_partitioned_key, convert_to_parquet_bytes
 from job.lib.s3 import S3Client
 from job.lib.wikipedia import WikipediaClient
 

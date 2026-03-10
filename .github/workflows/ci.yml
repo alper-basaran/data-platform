@@ -108,15 +108,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Validate Kubernetes manifests (client dry-run)
+      - name: Install kubeconform
         run: |
-          kubectl apply --dry-run=client --validate=false -f platform/cluster/storageclass.yaml
-          kubectl apply --dry-run=client --validate=false -f platform/minio/deployment.yaml
-          kubectl apply --dry-run=client --validate=false -f platform/postgres/deployment.yaml
-          kubectl apply --dry-run=client --validate=false -f platform/airflow/serviceAccount.yaml
+          curl -sSL -o /tmp/kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp
+          sudo install /tmp/kubeconform /usr/local/bin/kubeconform
+
+      - name: Validate Kubernetes manifests (offline schema check)
+        run: |
+          kubeconform \
+            -summary -strict -ignore-missing-schemas \
+            platform/cluster/storageclass.yaml \
+            platform/minio/deployment.yaml \
+            platform/postgres/deployment.yaml \
+            platform/airflow/serviceAccount.yaml
 
   helm:
     name: Helm validation

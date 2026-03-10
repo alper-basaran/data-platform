@@ -1,0 +1,182 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+data:
+  init.sh: |
+    #!/bin/bash
+    set -e
+    
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-'EOSQL'
+      CREATE DATABASE wikipedia;
+    EOSQL
+    
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname=wikipedia -v appuser="$LOAD_USER" -v pw="$LOAD_PASSWORD" -v dbtuser="$DBT_USER" -v dbtpw="$DBT_PASSWORD" <<-'EOSQL'
+      CREATE USER :appuser WITH PASSWORD :'pw';
+      CREATE USER :dbtuser WITH PASSWORD :'dbtpw';
+
+      GRANT CONNECT ON DATABASE wikipedia TO :appuser;
+      GRANT CONNECT ON DATABASE wikipedia TO :dbtuser;
+      GRANT CREATE ON DATABASE wikipedia TO :dbtuser;
+
+      GRANT USAGE ON SCHEMA public TO :appuser;
+      GRANT USAGE, CREATE ON SCHEMA public TO :dbtuser;
+
+      CREATE TABLE IF NOT EXISTS wikipedia_page_changes (
+        change_id BIGINT PRIMARY KEY,
+        revision_id_old BIGINT,
+        revision_id_new BIGINT,
+        title TEXT,
+        event_timestamp TIMESTAMPTZ,
+        username TEXT,
+        comment TEXT,
+        old_length INTEGER,
+        new_length INTEGER,
+        log_type TEXT,
+        log_action TEXT,
+        source_object_key TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE OR REPLACE FUNCTION set_updated_at()
+      RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$;
+
+      DROP TRIGGER IF EXISTS trg_set_updated_at_wikipedia_page_changes ON wikipedia_page_changes;
+      CREATE TRIGGER trg_set_updated_at_wikipedia_page_changes
+      BEFORE UPDATE ON wikipedia_page_changes
+      FOR EACH ROW
+      EXECUTE FUNCTION set_updated_at();
+
+      GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :appuser;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :appuser;    
+
+      GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :dbtuser;
+      GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :dbtuser;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :dbtuser;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO :dbtuser;
+    EOSQL
+
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname=postgres -v airflow_user="$AIRFLOW_USER" -v airflow_pw="$AIRFLOW_PASSWORD" -v airflow_db="$AIRFLOW_DB" <<-'EOSQL'
+      CREATE USER :"airflow_user" WITH PASSWORD :'airflow_pw';
+      CREATE DATABASE :"airflow_db" OWNER :"airflow_user";
+    EOSQL
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_PASSWORD
+        - name: POSTGRES_DB
+          value: "postgres"
+        - name: LOAD_USER
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_LOAD_USER
+        - name: LOAD_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_LOAD_PW
+        - name: DBT_USER
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_DBT_USER
+        - name: DBT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_DBT_PW
+        - name: AIRFLOW_USER
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_AIRFLOW_USER
+        - name: AIRFLOW_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_AIRFLOW_PW
+        - name: AIRFLOW_DB
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_AIRFLOW_DB
+        resources:
+          requests:
+            cpu: 150m
+            memory: 256Mi
+          limits:
+            cpu: 750m
+            memory: 1Gi
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-data
+        - mountPath: /docker-entrypoint-initdb.d
+          name: init-scripts
+      volumes:
+      - name: postgres-data        
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+      - name: init-scripts
+        configMap:
+          name: postgres-init-scripts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  type: NodePort # TODO: demo-only host exposure; keep ClusterIP for production internal DB access.
+  ports:
+  - port: 5432
+    targetPort: 5432
+    nodePort: 30432

@@ -1,0 +1,17 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30900  # MinIO API NodePort
+        hostPort: 9000       # Accessible on localhost:9000
+        protocol: TCP      
+      - containerPort: 30901  # MinIO UI NodePort
+        hostPort: 9001       # Accessible on localhost:9001
+        protocol: TCP
+      - containerPort: 30080  # Airflow UI/API NodePort
+        hostPort: 8080       # Accessible on localhost:8080
+        protocol: TCP
+      - containerPort: 30432  # Postgres NodePort
+        hostPort: 5432       # Accessible on localhost:5432
+        protocol: TCP

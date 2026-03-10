@@ -1,0 +1,237 @@
+x-anchors:
+  airflowSecretName: &airflowSecretName airflow-secrets
+  airflowDagsConfigMapName: &airflowDagsConfigMapName airflow-local-dags
+
+executor: LocalExecutor
+
+# Keep Airflow scoped to its own namespace by default.
+# Cross-namespace access for KubernetesPodOperator is granted explicitly
+# via a Role/RoleBinding in `pipelines` (see platform/airflow/serviceAccount.yaml).
+multiNamespaceMode: false
+
+serviceAccount:
+  create: false
+  name: airflow
+
+config:
+  core:
+    dags_folder: /opt/airflow/local-dags
+    dagbag_import_timeout: 120
+
+postgresql:
+  enabled: false
+
+triggerer:
+  enabled: false
+
+flower:
+  enabled: false
+statsd:
+  enabled: false
+
+data:
+  metadataSecretName: *airflowSecretName
+  metadataConnection:
+    protocol: postgresql
+
+webserver:
+  defaultUser: null
+
+createUserJob:
+  enabled: true
+  args:
+    - "bash"
+    - "-ec"
+    - |
+      airflow users create \
+        -r Admin \
+        -u "$AIRFLOW_ADMIN_USERNAME" \
+        -e "$AIRFLOW_ADMIN_EMAIL" \
+        -f "$AIRFLOW_ADMIN_FIRST_NAME" \
+        -l "$AIRFLOW_ADMIN_LAST_NAME" \
+        -p "$AIRFLOW_ADMIN_PASSWORD"
+  env:
+    - name: AIRFLOW_ADMIN_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: *airflowSecretName
+          key: username
+    - name: AIRFLOW_ADMIN_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: *airflowSecretName
+          key: password
+    - name: AIRFLOW_ADMIN_FIRST_NAME
+      valueFrom:
+        secretKeyRef:
+          name: *airflowSecretName
+          key: firstName
+    - name: AIRFLOW_ADMIN_LAST_NAME
+      valueFrom:
+        secretKeyRef:
+          name: *airflowSecretName
+          key: lastName
+    - name: AIRFLOW_ADMIN_EMAIL
+      valueFrom:
+        secretKeyRef:
+          name: *airflowSecretName
+          key: email
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+dags:
+  gitSync:
+    enabled: false
+
+scheduler:
+  serviceAccount:
+    create: false
+    name: airflow  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+  extraInitContainers:
+    - name: local-dags-sync
+      image: apache/airflow:3.1.7
+      command:
+        - bash
+        - -ec
+        - |
+          mkdir -p /opt/airflow/local-dags
+          cp -L /opt/airflow/local-dags-cm/*.py /opt/airflow/local-dags/ 2>/dev/null || true
+      volumeMounts:
+        - name: local-dags-cm
+          mountPath: /opt/airflow/local-dags-cm
+          readOnly: true
+        - name: local-dags
+          mountPath: /opt/airflow/local-dags
+  extraVolumes:
+    - name: local-dags-cm
+      configMap:
+        name: *airflowDagsConfigMapName
+    - name: local-dags
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: local-dags-cm
+      mountPath: /opt/airflow/local-dags-cm
+      readOnly: true
+    - name: local-dags
+      mountPath: /opt/airflow/local-dags
+      readOnly: true
+
+dagProcessor:
+  serviceAccount:
+    create: false
+    name: airflow
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+# TODO: just to make it work locally with the bundled DAG
+  extraInitContainers:
+    - name: fix-logs-permissions
+      image: apache/airflow:3.1.7
+      command:
+        - bash
+        - -ec
+        - |
+          mkdir -p /opt/airflow/logs/dag_processor
+          chgrp -R 0 /opt/airflow/logs
+          chmod -R g+rwX /opt/airflow/logs
+      securityContext:
+        runAsUser: 0
+      volumeMounts:
+        - name: logs
+          mountPath: /opt/airflow/logs
+    - name: local-dags-sync
+      image: apache/airflow:3.1.7
+      command:
+        - bash
+        - -ec
+        - |
+          mkdir -p /opt/airflow/local-dags
+          cp -L /opt/airflow/local-dags-cm/*.py /opt/airflow/local-dags/ 2>/dev/null || true
+      volumeMounts:
+        - name: local-dags-cm
+          mountPath: /opt/airflow/local-dags-cm
+          readOnly: true
+        - name: local-dags
+          mountPath: /opt/airflow/local-dags
+  extraVolumes:
+    - name: local-dags-cm
+      configMap:
+        name: *airflowDagsConfigMapName
+    - name: local-dags
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: local-dags-cm
+      mountPath: /opt/airflow/local-dags-cm
+      readOnly: true
+    - name: local-dags
+      mountPath: /opt/airflow/local-dags
+      readOnly: true
+
+apiServer:
+  serviceAccount:
+    create: false
+    name: airflow
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  service:
+    type: NodePort # TODO: demo-only host exposure; keep ClusterIP + Ingress in production.
+    ports:
+      - name: airflow-ui
+        port: 8080
+        targetPort: 8080
+        nodePort: 30080 # TODO: demo-only fixed NodePort for kind host mapping.
+  extraInitContainers:
+    - name: local-dags-sync
+      image: apache/airflow:3.1.7
+      command:
+        - bash
+        - -ec
+        - |
+          mkdir -p /opt/airflow/local-dags
+          cp -L /opt/airflow/local-dags-cm/*.py /opt/airflow/local-dags/ 2>/dev/null || true
+      volumeMounts:
+        - name: local-dags-cm
+          mountPath: /opt/airflow/local-dags-cm
+          readOnly: true
+        - name: local-dags
+          mountPath: /opt/airflow/local-dags
+  extraVolumes:
+    - name: local-dags-cm
+      configMap:
+        name: *airflowDagsConfigMapName
+    - name: local-dags
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: local-dags-cm
+      mountPath: /opt/airflow/local-dags-cm
+      readOnly: true
+    - name: local-dags
+      mountPath: /opt/airflow/local-dags
+      readOnly: true
+
+# Keep logs on PVC for local visibility
+logs:
+  persistence:
+    enabled: true
+    size: 1Gi

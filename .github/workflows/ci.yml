@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  python-jobs:
+    name: Python Jobs (${{ matrix.project_name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project_name: extract
+            project_path: jobs/extract/wikipedia
+          - project_name: load
+            project_path: jobs/load/wikipedia
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: python -m pip install --upgrade pip poetry
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.project_path }}
+        run: poetry install --with dev,test,lint
+
+      - name: Black check
+        working-directory: ${{ matrix.project_path }}
+        run: poetry run black --check src
+
+      - name: Run pytest (if tests exist)
+        working-directory: ${{ matrix.project_path }}
+        run: |
+          if compgen -G "tests/test_*.py" > /dev/null; then
+            poetry run pytest -q
+          else
+            echo "No test files found under tests/, skipping pytest"
+          fi
+
+  orchestration:
+    name: Orchestration DAG checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python syntax check (DAGs)
+        run: python -m py_compile orchestration/dags/*.py
+
+  dbt:
+    name: dbt project checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: dbt
+
+    env:
+      DBT_PROFILES_DIR: .
+      DBT_PG_HOST: localhost
+      DBT_PG_PORT: "5432"
+      DBT_PG_USER: dbt
+      DBT_PG_PASSWORD: dbtpassword
+      DBT_PG_DATABASE: wikipedia
+      DBT_PG_SCHEMA: public
+      DBT_SOURCE_SCHEMA: public
+      DBT_SOURCE_TABLE: wikipedia_page_events
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt
+        run: python -m pip install --upgrade pip dbt-postgres
+
+      - name: Validate dbt project
+        run: dbt parse --profiles-dir .
+
+  kubernetes:
+    name: Kubernetes validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL -o /tmp/kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp
+          sudo install /tmp/kubeconform /usr/local/bin/kubeconform
+
+      - name: Validate Kubernetes manifests (offline schema check)
+        run: |
+          kubeconform \
+            -summary -strict -ignore-missing-schemas \
+            platform/cluster/storageclass.yaml \
+            platform/minio/deployment.yaml \
+            platform/postgres/deployment.yaml \
+            platform/airflow/serviceAccount.yaml
+
+  helm:
+    name: Helm validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Validate Airflow Helm values by rendering chart
+        run: |
+          helm repo add apache-airflow https://airflow.apache.org
+          helm repo update
+          helm template airflow apache-airflow/airflow \
+            --namespace platform \
+            --values platform/airflow/values.yaml > /tmp/airflow-rendered.yaml

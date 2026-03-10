@@ -1,6 +1,8 @@
 import json
 from typing import Any
+
 from pydantic import BaseModel, ConfigDict, field_validator
+
 
 class WikipediaPageChangeRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -13,7 +15,7 @@ class WikipediaPageChangeRecord(BaseModel):
     user: str | None
     comment: str | None
     old_length: int | None
-    new_length: int | None    
+    new_length: int | None
     tags: list[str]
     log_type: str | None
     log_action: str | None

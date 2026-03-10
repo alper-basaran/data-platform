@@ -20,5 +20,6 @@ def configure_logging(level: str | int | None = None) -> None:
         datefmt=DEFAULT_LOG_DATE_FORMAT,
     )
 
+
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)

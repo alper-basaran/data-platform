@@ -1,11 +1,12 @@
+from typing import Optional
+
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
-from typing import Optional
 
 
 class S3Client:
-    #TODO: docstring
+    # TODO: docstring
     def __init__(
         self,
         endpoint_url: Optional[str] = None,
@@ -46,7 +47,7 @@ class S3Client:
             response = client.get_object(Bucket=bucket, Key=key)
             body = response["Body"].read()
             return body.decode("utf-8")
-        
+
         except ClientError as exc:
             error_code = exc.response.get("Error", {}).get("Code")
             if error_code in ("NoSuchKey", "404"):

@@ -37,7 +37,9 @@ class AppConfig:
 
         try:
             if isinstance(self.interval_start, str):
-                self.interval_start = datetime.fromisoformat(self.interval_start.replace("Z", "+00:00"))
+                self.interval_start = datetime.fromisoformat(
+                    self.interval_start.replace("Z", "+00:00")
+                )
         except ValueError:
             raise InvalidJobConfigurationError(
                 field_name="interval_start",
@@ -48,7 +50,10 @@ class AppConfig:
     def _validate(self):
         missing = []
         for f in fields(self):
-            if f.metadata.get("required", False) and getattr(self, f.name) in (None, ""):
+            if f.metadata.get("required", False) and getattr(self, f.name) in (
+                None,
+                "",
+            ):
                 missing.append(f.name)
 
         if missing:

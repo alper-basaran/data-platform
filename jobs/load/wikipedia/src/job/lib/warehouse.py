@@ -8,12 +8,8 @@ from psycopg import connect
 class WarehouseWriter(ABC):
     @abstractmethod
     def __init__(
-        self,
-        host: str,
-        port: int,
-        dbname: str,
-        user: str,
-        password: str) -> None: ...        
+        self, host: str, port: int, dbname: str, user: str, password: str
+    ) -> None: ...
 
     @abstractmethod
     def upsert(
@@ -21,11 +17,13 @@ class WarehouseWriter(ABC):
         table: str,
         rows: list[dict[str, Any]],
         unique_key: list[str],
-    ) -> int: ...        
+    ) -> int: ...
 
 
-class PostgresWarehouseWriter(WarehouseWriter): 
-    def __init__(self, host: str, port: int, dbname: str, user: str, password: str) -> None:
+class PostgresWarehouseWriter(WarehouseWriter):
+    def __init__(
+        self, host: str, port: int, dbname: str, user: str, password: str
+    ) -> None:
         self._conninfo = (
             f"host={host} "
             f"port={port} "

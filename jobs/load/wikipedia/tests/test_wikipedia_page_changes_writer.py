@@ -8,7 +8,7 @@ def test_persist_page_changes_maps_fields_and_filters_missing_change_id():
 
     # Arrange
     warehouse_writer = create_autospec(WarehouseWriter, instance=True, spec_set=True)
-    warehouse_writer.upsert.return_value = 1    
+    warehouse_writer.upsert.return_value = 1
     writer = WikipediaPageChangesWriter(warehouse_client=warehouse_writer)
 
     rows = [

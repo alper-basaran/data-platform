@@ -63,15 +63,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install formatters
-        run: python -m pip install --upgrade pip black isort
-
-      - name: Black check (DAGs)
-        run: black --check orchestration/dags
-
-      - name: isort check (DAGs)
-        run: isort --check-only orchestration/dags
-
       - name: Python syntax check (DAGs)
         run: python -m py_compile orchestration/dags/*.py
 

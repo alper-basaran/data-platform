@@ -5,11 +5,14 @@ from job.lib.warehouse import WarehouseWriter
 # TODO: Parameterize table name and schema
 # TODO: Add table partitioning (day+hour on event_timestamp) once schema management is centralized.
 
+
 class WikipediaPageChangesWriter:
     def __init__(self, warehouse_client: WarehouseWriter) -> None:
         self._warehouse_client = warehouse_client
-        
-    def persist_page_changes(self, table:str, rows: list[dict[str, Any]], source_object_key: str) -> int:
+
+    def persist_page_changes(
+        self, table: str, rows: list[dict[str, Any]], source_object_key: str
+    ) -> int:
         payload_rows: list[dict[str, Any]] = []
 
         for row in rows:

@@ -5,18 +5,15 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+
 def convert_to_parquet_bytes(
-        events: list[dict[str, Any]],
-        mapper_fn: callable,
-        compression: str = "snappy"
-    ) -> bytes:
-    
+    events: list[dict[str, Any]], mapper_fn: callable, compression: str = "snappy"
+) -> bytes:
+
     rows: list[dict[str, Any]] = []
 
-    for event in events:        
-        rows.append(
-            mapper_fn(event)
-        )          
+    for event in events:
+        rows.append(mapper_fn(event))
 
     table = pa.Table.from_pylist(rows)
     buffer = BytesIO()
@@ -26,13 +23,10 @@ def convert_to_parquet_bytes(
 
 
 def build_partitioned_key(
-        data_interval_ts: datetime,
-    ) -> str:
-    
+    data_interval_ts: datetime,
+) -> str:
+
     date_part = data_interval_ts.strftime("%Y-%m-%d")
     hour_part = data_interval_ts.strftime("%H")
-    
-    return (
-        f"/dt={date_part}/hh={hour_part}/"
-        f"page_events.parquet"
-    )
+
+    return f"/dt={date_part}/hh={hour_part}/" f"page_events.parquet"

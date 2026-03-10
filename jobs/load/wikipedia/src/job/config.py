@@ -17,7 +17,7 @@ class AppConfig:
     interval_start: datetime = field(default=None, metadata={"required": True})
     pg_host: str = field(default=None, metadata={"required": True})
     pg_port: int = field(default=5432, metadata={"required": False})
-    pg_db: str = field(default="bronze", metadata={"required": False})
+    pg_db: str = field(default="wikipedia", metadata={"required": False})
     pg_user: str = field(default=None, metadata={"required": True})
     pg_password: str = field(default=None, metadata={"required": True})
 

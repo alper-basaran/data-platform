@@ -8,13 +8,20 @@ data:
     set -e
     
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-'EOSQL'
-      CREATE DATABASE bronze;
+      CREATE DATABASE wikipedia;
     EOSQL
     
-    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname=bronze -v appuser="$LOAD_USER" -v pw="$LOAD_PASSWORD" <<-'EOSQL'
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname=wikipedia -v appuser="$LOAD_USER" -v pw="$LOAD_PASSWORD" -v dbtuser="$DBT_USER" -v dbtpw="$DBT_PASSWORD" <<-'EOSQL'
       CREATE USER :appuser WITH PASSWORD :'pw';
-      GRANT CONNECT ON DATABASE bronze TO :appuser;
+      CREATE USER :dbtuser WITH PASSWORD :'dbtpw';
+
+      GRANT CONNECT ON DATABASE wikipedia TO :appuser;
+      GRANT CONNECT ON DATABASE wikipedia TO :dbtuser;
+      GRANT CREATE ON DATABASE wikipedia TO :dbtuser;
+
       GRANT USAGE ON SCHEMA public TO :appuser;
+      GRANT USAGE, CREATE ON SCHEMA public TO :dbtuser;
+
       CREATE TABLE IF NOT EXISTS wikipedia_page_changes (
         change_id BIGINT PRIMARY KEY,
         revision_id_old BIGINT,
@@ -50,6 +57,11 @@ data:
 
       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :appuser;
       ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :appuser;    
+
+      GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :dbtuser;
+      GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :dbtuser;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :dbtuser;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO :dbtuser;
     EOSQL
 
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname=postgres -v airflow_user="$AIRFLOW_USER" -v airflow_pw="$AIRFLOW_PASSWORD" -v airflow_db="$AIRFLOW_DB" <<-'EOSQL'
@@ -111,6 +123,16 @@ spec:
             secretKeyRef:
               name: ns-secrets
               key: PG_LOAD_PW
+        - name: DBT_USER
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_DBT_USER
+        - name: DBT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ns-secrets
+              key: PG_DBT_PW
         - name: AIRFLOW_USER
           valueFrom:
             secretKeyRef:

@@ -91,7 +91,7 @@ dags:
 scheduler:
   serviceAccount:
     create: false
-    name: airflow
+    name: airflow  
   resources:
     requests:
       cpu: 100m

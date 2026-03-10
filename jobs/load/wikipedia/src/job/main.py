@@ -3,7 +3,7 @@ import sys
 from job.config import AppConfig
 from job.lib.logger import configure_logging, get_logger
 from job.lib.parquetutils import build_partitioned_key, read_parquet_rows
-from job.lib.postgres import WikipediaPageChangesWriter
+from job.lib.sink import WikipediaPageChangesWriter
 from job.lib.s3 import S3Client
 from job.lib.warehouse import PostgresWarehouseWriter
 

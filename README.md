@@ -1,22 +1,38 @@
 # Data Platform Monorepo
 
-This repository contains an end to end local data platform that ingests Wikipedia page change events, lands data in object storage, loads it into PostgreSQL, and orchestrates transformations with dbt through Airflow. It is designed as a containerized, Kubernetes-based setup for development and demo workflows, with infrastructure, jobs, and orchestration code managed in one place.
+This repository contains an end to end data platform that ingests Wikipedia page change events, lands data in object storage, loads it into PostgreSQL, and orchestrates transformations with dbt through Airflow. It is designed as a containerized, Kubernetes-based setup for development and demo workflows, with infrastructure, jobs, and orchestration code managed in one place.
 
 
 ## Quickstart
 
-In order to run the project locally, Docker and kind needs to be installed. Please refer to following resources on how to install Docker and kind:
+> In order to run the project locally, Docker and kind needs to be installed
 
-Once Docker and Kind are installed, you can run `make create` command to spin up the resources and run the project locally. This make target achieves following steps:
+Before running the platform, create a local environment file for demo credentials:
+
+```bash
+cp .env.example .env
+```
+
+Update values in `.env` as needed. The Makefile automatically loads `.env` if present.
+
+Once Docker and Kind are installed, you can run below command to spin up the resources and run the project locally
+```bash
+make create
+```
+This make target performs the following:
+
 - Create a Kubernetes cluster using Kind
 - Deploy Minio and configure access policies for extract and load pipeline services
 - Deploy Postgres and create databases, as well as logins for extract and load services, as well as dbt and airflow
 - Build docker images for extract, load and dbt services and upload these images to Kind cluster nodes
 - Deploy Airflow for orchestration
 
-⚠️ Depending on the hardware, deployment might take a few minutes to be ready. To avoid transient errors and prevent failing runs, the Airflow DAG is paused by default. It is advised to monitor the kubernetes deployment before toggling it on and running the pipeline.
+⚠️ Depending on the system's resources, deployment might take a few minutes to be ready. To avoid transient errors and prevent failing runs, the Airflow DAG is paused by default. It is advised to monitor the kubernetes deployment before toggling it on and running the pipeline.
 
-Once you are done, you can invoke `make teardown` to stop the cluster and destroy the resources. 
+Once you are done, you can invoke following command to stop the cluster and destroy the resources. 
+```bash
+make teardown
+```
  
 ## Solution 
 
